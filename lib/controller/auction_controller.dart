@@ -1,121 +1,136 @@
 import 'package:cou_server2/cou_server2.dart';
 
-class AuctionController extends HTTPController {
-	@httpPost
-	Future<Response> postAuction() async {
-		Auction auction = new Auction()
-			..readMap(request.body.asMap());
-		Query<Auction> query = new Query<Auction>()
+class AuctionController extends ResourceController {
+	@Operation.post()
+	Future<Response> postAuction(@Bind.body() Auction auction) async {
+		Query<Auction> query = Query<Auction>(app.channel.context)
 			..values = auction;
 
 		try {
 			auction = await query.insert();
-			return new Response.created(
-				'/auctions/${auction.id}', body: auction);
+			return Response.created('/auctions/${auction.id}', body: auction);
 		} catch (e) {
-			return new Response.badRequest();
+			return Response.badRequest();
 		}
 	}
 
-	@httpGet
-	Future<Response> getAuction(@HTTPPath("id") int id) async {
-		Query<Auction> auctionQuery = new Query<Auction>();
-		auctionQuery.where.id = whereEqualTo(id);
+	@Operation.get("id")
+	Future<Response> getAuction() async {
+		final int id = int.parse(request.path.variables["id"]);
+
+		Query<Auction> auctionQuery = Query<Auction>(app.channel.context)
+			..where((Auction auction) => auction.id).equalTo(id);
+
 		try {
 			Auction auction = await auctionQuery.fetchOne();
+
 			if (auction == null) {
-				return new Response.notFound();
+				return Response.notFound();
 			}
-			return new Response.ok(auction);
+
+			return Response.ok(auction);
 		} catch (e) {
-			return new Response.serverError(body: e.toString());
+			return Response.serverError(body: e.toString());
 		}
 	}
 
-	@httpGet
-	Future<Response> getAuctions({@HTTPQuery("item_name") String item_name,
-		@HTTPQuery("total_cost") String total_cost, @HTTPQuery(
-			"username") String username, @HTTPQuery(
-			"item_count") String item_count}) async {
-		Query<Auction> auctionQuery = new Query<Auction>();
-		if (item_name != null) {
-			auctionQuery.where.item_name =
-				whereContainsString(item_name, caseSensitive: false);
+	@Operation.get("item_name", "username", "item_count", "total_cost")
+	Future<Response> getAuctions() async {
+		final String itemName = request.path.variables["item_name"] ?? null;
+		final String username = request.path.variables["username"];
+		final String itemCount = request.path.variables["item_count"] ?? null;
+		final String totalCost = request.path.variables["total_cost"] ?? null;
+
+		Query<Auction> auctionQuery = Query<Auction>(app.channel.context);
+
+		if (itemName != null) {
+			auctionQuery..where((Auction auction) => auction.item_name).contains(itemName, caseSensitive: false);
 		}
+
 		if (username != null) {
-			auctionQuery.where.user.username =
-				whereContainsString(username, caseSensitive: false);
+			auctionQuery..where((Auction auction) => auction.user.username).equalTo(username, caseSensitive: false);
 		}
-		if (item_count != null) {
+
+		if (itemCount != null) {
 			try {
-				auctionQuery.where.total_cost =
-					_parseIntCompareParam('item_count', item_count);
+				_applyCompareParam(auctionQuery, (Auction auction) => auction.item_count, "item_count", itemCount);
 			} on FormatException catch (e) {
-				return new Response.badRequest(body: e.message);
-			}
-		}
-		if (total_cost != null) {
-			try {
-				auctionQuery.where.total_cost =
-					_parseIntCompareParam('total_cost', total_cost);
-			} on FormatException catch (e) {
-				return new Response.badRequest(body: e.message);
+				return Response.badRequest(body: e.message);
 			}
 		}
 
-		List<Auction> auctions = await auctionQuery.fetch();
+		if (totalCost != null) {
+			try {
+				_applyCompareParam(auctionQuery, (Auction auction) => auction.total_cost, "total_cost", totalCost);
+			} on FormatException catch (e) {
+				return Response.badRequest(body: e.message);
+			}
+		}
 
-		return new Response.ok(auctions);
+		try {
+			List<Auction> auctions = await auctionQuery.fetch();
+			return Response.ok(auctions);
+		} catch (e) {
+			return Response.serverError(body: e.toString());
+		}
 	}
 
-	_parseIntCompareParam(String paramName, String parameter) {
-		RegExp costRegex = new RegExp(r'(eq|ge|le|lt|gt)(\d+)');
+	void _applyCompareParam(Query<Auction> query, Function property, String paramName, String parameter) {
+		RegExp costRegex = RegExp(r'(eq|ge|le|lt|gt)(\d+)');
 		List<Match> matches = costRegex.allMatches(parameter).toList();
+
 		if (matches.length > 2) {
-			throw new FormatException(
-				'$paramName may not have more than two operators');
+			throw FormatException("$paramName may not have more than two operators");
 		}
+
 		if (matches.length > 1) {
 			String firstOp = matches[0].group(1);
 			String secondOp = matches[1].group(1);
+
 			if (firstOp == 'eq' || secondOp == 'eq') {
-				throw new FormatException(
-					'$paramName may not have more than one operator if one of the operators is eq');
+				throw FormatException("$paramName may not have more than one operator if one of the operators is eq");
 			}
-			if (firstOp == 'lt' || firstOp == 'le' ||
-				secondOp == 'gt' || secondOp == 'ge') {
-				throw new FormatException(
-					r' range must be specified as (gt|ge)\d+,(lt|le)\d+');
+
+			if (firstOp == 'lt' || firstOp == 'le' || secondOp == 'gt' || secondOp == 'ge') {
+				throw FormatException(r" range must be specified as (gt|ge)\d+,(lt|le)\d+");
 			}
 
 			// these parses shouldn't fail since it matched the regex already
 			int firstValue = int.parse(matches[0].group(2));
 			int secondValue = int.parse(matches[1].group(2));
+
 			if (firstOp == 'gt') {
 				firstValue++;
 			}
+
 			if (secondOp == 'lt') {
 				secondValue--;
 			}
-			return whereBetween(firstValue, secondValue);
+
+			query..where(property).between(firstValue, secondValue);
 		} else if (matches.length == 1) {
 			String op = matches[0].group(1);
 			int cost = int.parse(matches[0].group(2));
+
 			switch (op) {
 				case 'eq':
-					return whereEqualTo(cost);
+					query..where(property).equalTo(cost);
+					break;
 				case 'lt':
-					return whereLessThan(cost);
+					query..where(property).lessThan(cost);
+					break;
 				case 'gt':
-					return whereGreaterThan(cost);
+					query..where(property).greaterThan(cost);
+					break;
 				case 'le':
-					return whereLessThanEqualTo(cost);
+					query..where(property).lessThanEqualTo(cost);
+					break;
 				case 'ge':
-					return whereGreaterThanEqualTo(cost);
+					query.where(property).greaterThanEqualTo(cost);
+					break;
 			}
 		} else {
-			throw new FormatException(
-				'$paramName must be in the format (?:(eq|ge|le|lt|gt)(\d+),?)');
+			throw FormatException("$paramName must be in the format (?:(eq|ge|le|lt|gt)(\d+),?)");
 		}
 	}
 }

@@ -1,23 +1,14 @@
-import 'dart:async';
-
-import 'package:aqueduct/aqueduct.dart';
 import 'package:cou_server2/cou_server2.dart';
 
-main() async {
+Future main() async {
 	try {
-		var app = new Application<ServerRequestSink>();
-		var config = new ApplicationConfiguration()
-			..port = 8081
-			..configurationFilePath = "config.yaml";
-
-		app.configuration = config;
+		app = Application<GameServer>()
+			..options.configurationFilePath = "config.yaml"
+			..options.port = 8181;
 
 		await app.start(numberOfInstances: 3);
+		print("Application running on port ${app.options.port}");
 	} catch (e, st) {
-		await writeError("$e\n $st");
+		print("$e\n $st");
 	}
-}
-
-Future writeError(String error) async {
-	print(error);
 }

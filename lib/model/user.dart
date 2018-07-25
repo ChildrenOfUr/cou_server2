@@ -3,49 +3,50 @@ import 'package:cou_server2/cou_server2.dart';
 class User extends ManagedObject<_User> implements _User {}
 
 class _User {
-	@ManagedColumnAttributes(primaryKey: true, autoincrement: true)
+	static String tableName() => "users";
+
+	ManagedSet<Auction> auctions;
+
+	ApiAccess api_access;
+
+	@primaryKey
 	int id;
 
-	@ManagedColumnAttributes(unique: true, nullable: false)
+	@Column(unique: true, nullable: false)
 	@Validate.length(lessThanEqualTo: 60)
 	String email;
 
-	@ManagedColumnAttributes(unique: true, nullable: false)
+	@Column(unique: true, nullable: false)
 	@Validate.length(lessThanEqualTo: 30)
 	String username;
 
-	@ManagedColumnAttributes(nullable: true)
+	@Column(nullable: true)
 	String bio;
 
-	@ManagedColumnAttributes(defaultValue: 'now()', nullable: false)
+	@Column(defaultValue: "now()", nullable: false)
 	DateTime registration_date;
 
-	@ManagedColumnAttributes(defaultValue: '\'#      \'')
-	@Validate.length(lessThanEqualTo: 7)
+	@Column(defaultValue: "'#      '")
+	@Validate.length(equalTo: 7)
 	String username_color;
 
-	@ManagedColumnAttributes(defaultValue: 'false', nullable: false)
+	@Column(defaultValue: "false", nullable: false)
 	bool chat_disabled;
 
-	@ManagedColumnAttributes(defaultValue: '\'[]\'', nullable: false)
+	@Column(defaultValue: "'[]'", nullable: false)
 	String achievements;
 
-	@ManagedColumnAttributes(nullable: true)
+	@Column(nullable: true)
 	DateTime last_login;
 
-	@ManagedColumnAttributes(defaultValue: '\'_\'', nullable: false)
+	@Column(defaultValue: "'_'", nullable: false)
 	@Validate.length(lessThanEqualTo: 10)
 	String elevation;
 
-	@ManagedColumnAttributes(nullable: true)
+	@Column(nullable: true)
 	@Validate.length(lessThanEqualTo: 30)
 	String custom_avatar;
 
-	@ManagedColumnAttributes(defaultValue: '\'[]\'', nullable: false)
+	@Column(defaultValue: "'[]'", nullable: false)
 	String friends;
-
-	ManagedSet<Auction> auctions;
-	ApiAccess api_access;
-
-	static String tableName() => "users";
 }

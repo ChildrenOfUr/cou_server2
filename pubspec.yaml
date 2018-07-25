@@ -4,10 +4,14 @@ version: 2.0.0
 author: CoU Development Team
 
 environment:
-  sdk: '>=1.20.0 <2.0.0'
+  sdk: '>=2.0.0-dev.68.0 <3.0.0'
 
 dependencies:
-  aqueduct: "^2.1.1"
+  aqueduct:
+    git:
+      url: git://github.com/stablekernel/aqueduct.git
+      ref: "3.0"
+      path: aqueduct
 
 dev_dependencies:
   test: '>=0.12.0 <0.13.0'

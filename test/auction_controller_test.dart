@@ -4,7 +4,7 @@ import 'package:aqueduct/test.dart';
 import 'package:aqueduct/aqueduct.dart';
 
 void main() {
-	Application<ServerRequestSink> app = new Application<ServerRequestSink>();
+	Application<ServerRequestSink> app = Application<ServerRequestSink>();
 	TestClient client;
 	List<String> itemTypes = ['pick', 'fancy_pick', 'guano'];
 	List<String> usernames = ['Thaderator', 'Elle Lament', 'Paal', 'Klikini'];
@@ -20,11 +20,11 @@ void main() {
 
 	setUp(() async {
 		await app.start(runOnMainIsolate: true);
-		client = new TestClient(app);
+		client = TestClient(app);
 
 		ManagedContext ctx = ManagedContext.defaultContext;
-		SchemaBuilder builder = new SchemaBuilder.toSchema(
-			ctx.persistentStore, new Schema.fromDataModel(ctx.dataModel),
+		SchemaBuilder builder = SchemaBuilder.toSchema(
+			ctx.persistentStore, Schema.fromDataModel(ctx.dataModel),
 			isTemporary: true);
 
 		for (String cmd in builder.commands) {
@@ -33,16 +33,16 @@ void main() {
 
 		// create an auction for every item type
 		for (int i = 0; i < itemTypes.length; i++) {
-			Query<Auction> auctionQuery = new Query<Auction>();
-			Query<User> userQuery = new Query<User>();
-			User user = new User()
+			Query<Auction> auctionQuery = Query<Auction>();
+			Query<User> userQuery = Query<User>();
+			User user = User()
 				..id = i
 				..username = usernames[i % usernames.length]
 				..email = usernames[i % usernames.length] + '@domain.com'
 				..bio = '';
 			userQuery.values = user;
 			await userQuery.insert();
-			Query<ApiAccess> apiQuery = new Query<ApiAccess>();
+			Query<ApiAccess> apiQuery = Query<ApiAccess>();
 			apiQuery.values
 				..user = user
 				..access_count = 0
@@ -110,9 +110,9 @@ void main() {
 	});
 
 	test('post to /auctions and expect the new auction to be there', () async {
-		User user = new User()
+		User user = User()
 			..id = 1;
-		Auction auction = new Auction()
+		Auction auction = Auction()
 			..item_name = itemTypes[0]
 			..user = user
 			..item_count = 10

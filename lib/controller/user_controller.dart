@@ -1,38 +1,53 @@
 import 'package:cou_server2/cou_server2.dart';
 
-class UserController extends HTTPController {
-	@httpGet
-	Future<Response> getUser(@HTTPPath("id") int id) async {
-		Query<User> userQuery = new Query<User>();
-		userQuery.where.id = whereEqualTo(id);
-		try {
-			User user = await userQuery.fetchOne();
-			if (user == null) {
-				return new Response.notFound();
-			}
-			return new Response.ok(user);
-		} catch (e) {
-			return new Response.serverError(body: e.toString());
-		}
+enum UserIdentifierType {
+	ID,
+	USERNAME,
+	EMAIL
+}
+
+class UserController extends ResourceController {
+	@Operation.get("id")
+	Future<Response> getUserById() async {
+		final int id = int.parse(request.path.variables["id"]);
+		return _getUser(id, UserIdentifierType.ID);
 	}
 
-	@httpGet
-	Future<Response> getUserQuery(
-		{@HTTPQuery("username") String username, @HTTPQuery(
-			"email") String email, @HTTPQuery("offset") int offset}) async {
-		Query<User> userQuery = new Query<User>()
-			..pageBy((User u) => u.id, QuerySortOrder.ascending)
-			..fetchLimit = 10
-			..offset = offset ?? 0;
-		if (username != null) {
-			userQuery.where.username =
-				whereContainsString(username, caseSensitive: false);
+	@Operation.get("username")
+	Future<Response> getUserByUsername() async {
+		final String username = request.path.variables["username"];
+		return _getUser(username, UserIdentifierType.USERNAME);
+	}
+
+	@Operation.get("email")
+	Future<Response> getUserByEmail() async {
+		final String email = request.path.variables["email"];
+		return _getUser(email, UserIdentifierType.EMAIL);
+	}
+
+	Future<Response> _getUser(dynamic identifier, UserIdentifierType identifierType) async {
+		Query<User> userQuery = Query<User>(app.channel.context);
+
+		if (identifierType == UserIdentifierType.ID) {
+			userQuery..where((User user) => user.id).equalTo(identifier as int);
+		} else if (identifierType == UserIdentifierType.USERNAME) {
+			userQuery..where((User user) => user.username).equalTo(identifier as String, caseSensitive: false);
+		} else if (identifierType == UserIdentifierType.EMAIL) {
+			userQuery..where((User user) => user.email).equalTo(identifier as String, caseSensitive: false);
+		} else {
+			throw ArgumentError("Invalid UserIdentifierType '$identifierType'");
 		}
-		if (email != null) {
-			userQuery.where.email =
-				whereContainsString(email, caseSensitive: false);
+
+		try {
+			User user = await userQuery.fetchOne();
+
+			if (user == null) {
+				return Response.notFound();
+			}
+
+			return Response.ok(user);
+		} catch (e) {
+			return Response.serverError(body: e.toString());
 		}
-		List<User> users = await userQuery.fetch();
-		return new Response.ok(users);
 	}
 }
